@@ -1,0 +1,15 @@
+bin/
+obj/
+*.user
+.vs/
+.idea/
+*.DotSettings.user
+TestResults/
+
+# Local bot data and secrets
+data/
+*.db
+*.db-shm
+*.db-wal
+appsettings.*.local.json
+.env
