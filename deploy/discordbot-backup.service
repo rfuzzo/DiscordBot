@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up the Discord bot database
+
+[Service]
+Type=oneshot
+User=discordbot
+Group=discordbot
+# .backup takes a consistent copy while the bot keeps running; keep the last 7 days.
+ExecStart=/bin/sh -c 'mkdir -p /var/lib/discordbot/backups && sqlite3 /var/lib/discordbot/discordbot.db ".backup /var/lib/discordbot/backups/discordbot-$(date +%%F).db" && find /var/lib/discordbot/backups -name "discordbot-*.db" -mtime +7 -delete'
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/discordbot

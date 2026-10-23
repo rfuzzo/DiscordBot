@@ -107,6 +107,32 @@ docker run -d --name discordbot -e Discord__Token=... -e Nexus__ApiKey=... -v di
 
 Slash commands are registered globally the first time the bot starts.
 
+### 5. Deploy to a server (systemd)
+
+`deploy/` runs the bot on a Debian server as a systemd service, without Docker. It's a self-contained build, so the server doesn't need .NET installed.
+
+Once, on the server, put the secrets in a root-only file:
+
+```sh
+mkdir -p /etc/discordbot && chmod 700 /etc/discordbot
+printf 'Discord__Token=...\nNexus__ApiKey=...\n' > /etc/discordbot/discordbot.env && chmod 600 /etc/discordbot/discordbot.env
+```
+
+Then deploy (and later update) from your machine with Bash (Git Bash on Windows) and SSH key access:
+
+```sh
+deploy/deploy.sh root@your-server
+```
+
+This builds for `linux-x64` and uploads the result to `/opt/discordbot/app` (the previous build is kept in `app.old`). It installs and starts:
+
+- `discordbot.service`: runs as an unprivileged `discordbot` user, restarts on failure and is capped at 300 MB RAM. The database is in `/var/lib/discordbot/`.
+- `discordbot-backup.timer`: makes a daily SQLite backup into `/var/lib/discordbot/backups/` and keeps 7 days.
+
+Useful commands on the server: `systemctl status discordbot`, `journalctl -u discordbot -f`, `systemctl restart discordbot`.
+
+Only run one copy of the bot per token. Stop your local one before deploying.
+
 ## Development
 
 ```sh

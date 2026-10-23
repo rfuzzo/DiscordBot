@@ -1,0 +1,32 @@
+[Unit]
+Description=Nexus Mods prediction market Discord bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=discordbot
+Group=discordbot
+ExecStart=/opt/discordbot/app/DiscordBot
+WorkingDirectory=/var/lib/discordbot
+# Discord__Token and Nexus__ApiKey (root-only file)
+EnvironmentFile=/etc/discordbot/discordbot.env
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=Database__Path=/var/lib/discordbot/discordbot.db
+Restart=always
+RestartSec=10
+
+# The server has no swap: cap the bot so it can never starve the website.
+MemoryHigh=250M
+MemoryMax=300M
+
+StateDirectory=discordbot
+StateDirectoryMode=0750
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+
+[Install]
+WantedBy=multi-user.target
