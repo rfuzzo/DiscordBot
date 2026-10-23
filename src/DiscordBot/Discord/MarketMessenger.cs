@@ -13,6 +13,9 @@ public interface IMarketNotifier
 {
     Task RefreshAsync(Market market);
 
+    /// <summary>Makes a newly posted message the market's live one and turns the previous one into a pointer to it.</summary>
+    Task MoveMessageAsync(Market market, ulong channelId, ulong messageId);
+
     Task AnnounceSettlementAsync(SettlementResult settlement, IReadOnlyList<NexusMod>? matchingMods = null);
 }
 
@@ -27,7 +30,7 @@ public sealed class MarketMessenger(GatewayClient client, MarketView view, Marke
     {
         // Several quick bets each trigger an edit, and those can reach Discord out of order. Editing one at a
         // time and always rendering the market as it is now means the last edit shows the latest odds.
-        var editLock = _editLocks.GetOrAdd(market.Id, _ => new SemaphoreSlim(1, 1));
+        var editLock = EditLock(market.Id);
         await editLock.WaitAsync();
         try
         {
@@ -50,6 +53,37 @@ public sealed class MarketMessenger(GatewayClient client, MarketView view, Marke
             editLock.Release();
         }
     }
+
+    public async Task MoveMessageAsync(Market market, ulong channelId, ulong messageId)
+    {
+        // Only the live message gets updated, so an older copy would keep showing outdated odds and live buttons.
+        var editLock = EditLock(market.Id);
+        await editLock.WaitAsync();
+        try
+        {
+            var previous = await markets.GetMarketAsync(market.GuildId, market.Id);
+            await markets.AttachMessageAsync(market.Id, channelId, messageId);
+            if (previous?.MessageId is not { } oldMessageId || oldMessageId == messageId)
+                return;
+
+            var jumpUrl = $"https://discord.com/channels/{market.GuildId}/{channelId}/{messageId}";
+            await client.Rest.ModifyMessageAsync(previous.ChannelId, oldMessageId, m =>
+            {
+                m.Embeds = [view.BuildMovedEmbed(previous, jumpUrl)];
+                m.Components = [];
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not move the message of market #{MarketId}", market.Id);
+        }
+        finally
+        {
+            editLock.Release();
+        }
+    }
+
+    private SemaphoreSlim EditLock(int marketId) => _editLocks.GetOrAdd(marketId, _ => new SemaphoreSlim(1, 1));
 
     public async Task AnnounceSettlementAsync(SettlementResult settlement, IReadOnlyList<NexusMod>? matchingMods = null)
     {
