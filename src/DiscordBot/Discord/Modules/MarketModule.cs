@@ -260,11 +260,45 @@ public sealed class MarketAdminModule(MarketService markets, MarketView view, IM
             await RespondAsync(Ephemeral(ex.Message));
         }
     }
+
+    [SubSlashCommand("refresh", "Redraw a market's message, e.g. after the bot couldn't update it")]
+    public async Task RefreshAsync(
+        [SlashCommandParameter(Description = "Market number", AutocompleteProviderType = typeof(AnyMarketAutocomplete))] int market,
+        [SlashCommandParameter(Description = "For a finished market, also post its result again")] bool announce = false)
+    {
+        var m = await markets.GetMarketAsync(GuildId, market);
+        if (m is null)
+        {
+            await RespondAsync(Ephemeral($"Market #{market} doesn't exist."));
+            return;
+        }
+
+        if (!announce)
+        {
+            await notifier.RefreshAsync(m);
+            await RespondAsync(Ephemeral($"Redrew market #{market}."));
+            return;
+        }
+
+        try
+        {
+            // Payouts happened when the market was settled; this only posts the result again.
+            var settlement = await markets.GetSettlementAsync(GuildId, market);
+            await RespondAsync(Ephemeral($"Redrew market #{market} and posted its result."));
+            await notifier.AnnounceSettlementAsync(settlement);
+        }
+        catch (MarketException ex)
+        {
+            await RespondAsync(Ephemeral(ex.Message));
+        }
+    }
 }
 
 /// <summary>Suggests running markets for "market" parameters.</summary>
-public sealed class MarketAutocomplete(MarketService markets) : IAutocompleteProvider<AutocompleteInteractionContext>
+public class MarketAutocomplete(MarketService markets) : IAutocompleteProvider<AutocompleteInteractionContext>
 {
+    protected virtual bool IncludeFinished => false;
+
     public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(
         ApplicationCommandInteractionDataOption option, AutocompleteInteractionContext context)
     {
@@ -272,7 +306,7 @@ public sealed class MarketAutocomplete(MarketService markets) : IAutocompletePro
             return [];
 
         var input = option.Value ?? "";
-        var list = await markets.ListMarketsAsync(guildId, includeFinished: false);
+        var list = await markets.ListMarketsAsync(guildId, IncludeFinished);
         return list
             .Where(m => input.Length == 0 || m.Id.ToString().StartsWith(input, StringComparison.Ordinal)
                         || m.Question.Contains(input, StringComparison.OrdinalIgnoreCase))
@@ -283,6 +317,12 @@ public sealed class MarketAutocomplete(MarketService markets) : IAutocompletePro
                 return new ApplicationCommandOptionChoiceProperties(name.Length > 100 ? name[..99] + "…" : name, m.Id);
             });
     }
+}
+
+/// <summary>Like <see cref="MarketAutocomplete"/>, but also suggests resolved and cancelled markets.</summary>
+public sealed class AnyMarketAutocomplete(MarketService markets) : MarketAutocomplete(markets)
+{
+    protected override bool IncludeFinished => true;
 }
 
 /// <summary>Suggests Nexus mods by name (most downloaded first) or by mod ID for "mod" parameters.</summary>

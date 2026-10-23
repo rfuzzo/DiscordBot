@@ -22,6 +22,28 @@ public sealed class MarketServiceTests : IDisposable
             Criteria: new ModCriteria("Johnny", null, null)));
 
     [Fact]
+    public async Task GetSettlementRebuildsThePayoutsWithoutPayingAgain()
+    {
+        var market = await CreateMarketAsync();
+        await _service.BuyAsync(Guild, Alice, market.Id, Side.Yes, 100);
+        await _service.BuyAsync(Guild, Bob, market.Id, Side.No, 100);
+        var original = await _service.ResolveAsync(market.Id, Side.Yes, "test");
+        var balance = (await _service.GetWalletAsync(Guild, Alice)).Balance;
+
+        var rebuilt = await _service.GetSettlementAsync(Guild, market.Id);
+
+        Assert.Equal(original.Payouts, rebuilt.Payouts);
+        Assert.Equal(balance, (await _service.GetWalletAsync(Guild, Alice)).Balance);
+    }
+
+    [Fact]
+    public async Task GetSettlementRejectsUnsettledMarkets()
+    {
+        var market = await CreateMarketAsync();
+        await Assert.ThrowsAsync<MarketException>(() => _service.GetSettlementAsync(Guild, market.Id));
+    }
+
+    [Fact]
     public async Task ListMarketsSortsByTheChosenOrder()
     {
         var longest = await CreateMarketAsync(moderator: true, duration: TimeSpan.FromDays(3));

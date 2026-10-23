@@ -416,6 +416,31 @@ public sealed class MarketService(
         }
     }
 
+    /// <summary>
+    /// Rebuilds the payouts (or refunds) of a market that is already settled, for re-announcing it.
+    /// Uses the same rules as <see cref="ResolveAsync"/> and <see cref="CancelAsync"/>; no eddies move.
+    /// </summary>
+    public async Task<SettlementResult> GetSettlementAsync(ulong guildId, int marketId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var market = await db.Markets.AsNoTracking().FirstOrDefaultAsync(m => m.Id == marketId && m.GuildId == guildId)
+                     ?? throw new MarketException($"Market #{marketId} doesn't exist.");
+        var positions = await db.Positions.AsNoTracking().Where(p => p.MarketId == marketId).ToListAsync();
+
+        IEnumerable<Payout> payouts = market switch
+        {
+            { Status: MarketStatus.Resolved, Outcome: { } outcome } => positions
+                .Where(p => p.Side == outcome && p.Shares > Epsilon)
+                .Select(p => new Payout(p.UserId, (long)Math.Floor(p.Shares + Epsilon))),
+            { Status: MarketStatus.Cancelled } => positions
+                .GroupBy(p => p.UserId)
+                .Select(g => new Payout(g.Key, Math.Max(0, g.Sum(p => p.NetCost)))),
+            _ => throw new MarketException($"Market #{marketId} isn't settled yet."),
+        };
+
+        return new SettlementResult(market, payouts.Where(p => p.Amount > 0).OrderByDescending(p => p.Amount).ToList());
+    }
+
     /// <summary>Cancels a market and refunds what each trader put in (minus what they already took out by selling).</summary>
     public async Task<SettlementResult> CancelAsync(int marketId, string? note, ulong? guildId = null)
     {

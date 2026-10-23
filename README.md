@@ -47,6 +47,7 @@ Moderators can also run free-form markets ("Will CDPR announce a patch this mont
 | `/market-admin custom question duration` | Manage Server | Free-form market resolved by a moderator |
 | `/market-admin resolve market outcome [note]` | Manage Server | Settle any market by hand |
 | `/market-admin cancel market [reason]` | Manage Server | Cancel and refund everyone |
+| `/market-admin refresh market [announce]` | Manage Server | Redraw a market's message (e.g. after the bot lost access to its channel). `announce` also posts a finished market's result again; no eddies move |
 
 New users start with 1000 €$. Each user can have 3 open markets at a time; moderators have no limit.
 Markets can run from 1 hour to 30 days. Each server has its own wallets and leaderboard.
