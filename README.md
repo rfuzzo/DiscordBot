@@ -36,7 +36,7 @@ Moderators can also run free-form markets ("Will CDPR announce a patch this mont
 |---|---|---|
 | `/market create duration [keyword] [category] [author] [count]` | everyone | Open a Nexus market. Filters are case-insensitive. `count` is the number of matching mods needed for YES (default 1). |
 | `/market update mod duration` | everyone | Open a market on whether a mod gets a new file. `mod` suggests Nexus mods as you type (most downloaded first); you can also enter a mod ID. |
-| `/market list` | everyone | Running markets with their odds |
+| `/market list [sort]` | everyone | Running markets with their odds. `sort`: Newest (default), Closing soon or Most traded |
 | `/market view market` | everyone | Re-post a market with its buttons |
 | `/market buy market side amount` | everyone | Buy YES/NO shares (the buttons do the same thing) |
 | `/market sell market side [shares]` | everyone | Sell shares back (all of them if `shares` is left empty) |

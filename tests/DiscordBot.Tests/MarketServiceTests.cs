@@ -22,6 +22,23 @@ public sealed class MarketServiceTests : IDisposable
             Criteria: new ModCriteria("Johnny", null, null)));
 
     [Fact]
+    public async Task ListMarketsSortsByTheChosenOrder()
+    {
+        var longest = await CreateMarketAsync(moderator: true, duration: TimeSpan.FromDays(3));
+        var shortest = await CreateMarketAsync(moderator: true, duration: TimeSpan.FromHours(2));
+        var newest = await CreateMarketAsync(moderator: true, duration: TimeSpan.FromDays(1));
+        await _service.BuyAsync(Guild, Bob, longest.Id, Side.Yes, 200);
+        await _service.BuyAsync(Guild, Bob, shortest.Id, Side.No, 50);
+
+        async Task<int[]> Ids(MarketSort sort) =>
+            (await _service.ListMarketsAsync(Guild, includeFinished: false, sort: sort)).Select(m => m.Id).ToArray();
+
+        Assert.Equal([newest.Id, shortest.Id, longest.Id], await Ids(MarketSort.Newest));
+        Assert.Equal([shortest.Id, newest.Id, longest.Id], await Ids(MarketSort.ClosingSoon));
+        Assert.Equal([longest.Id, shortest.Id, newest.Id], await Ids(MarketSort.MostTraded));
+    }
+
+    [Fact]
     public async Task NewUsersGetTheStartingBalance()
     {
         var wallet = await _service.GetWalletAsync(Guild, Alice);

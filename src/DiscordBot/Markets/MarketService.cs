@@ -2,11 +2,25 @@ using DiscordBot.Data;
 using DiscordBot.Nexus;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using NetCord.Services.ApplicationCommands;
 
 namespace DiscordBot.Markets;
 
 /// <summary>A rule violation that should be shown to the user as-is.</summary>
 public sealed class MarketException(string message) : Exception(message);
+
+/// <summary>Order of <c>/market list</c>. The choice names are what Discord shows.</summary>
+public enum MarketSort
+{
+    [SlashCommandChoice(Name = "Newest")]
+    Newest,
+
+    [SlashCommandChoice(Name = "Closing soon")]
+    ClosingSoon,
+
+    [SlashCommandChoice(Name = "Most traded")]
+    MostTraded,
+}
 
 public sealed record CreateMarketRequest(
     ulong GuildId,
@@ -202,13 +216,19 @@ public sealed class MarketService(
         return await db.Markets.AsNoTracking().FirstOrDefaultAsync(m => m.Id == marketId && m.GuildId == guildId);
     }
 
-    public async Task<IReadOnlyList<Market>> ListMarketsAsync(ulong guildId, bool includeFinished, int count = 25)
+    public async Task<IReadOnlyList<Market>> ListMarketsAsync(ulong guildId, bool includeFinished, int count = 25, MarketSort sort = MarketSort.Newest)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var query = db.Markets.AsNoTracking().Where(m => m.GuildId == guildId);
         if (!includeFinished)
             query = query.Where(m => m.Status == MarketStatus.Open || m.Status == MarketStatus.Closed);
-        return await query.OrderByDescending(m => m.Id).Take(count).ToListAsync();
+        query = sort switch
+        {
+            MarketSort.ClosingSoon => query.OrderBy(m => m.ClosesAtUtc).ThenByDescending(m => m.Id),
+            MarketSort.MostTraded => query.OrderByDescending(m => m.Volume).ThenByDescending(m => m.Id),
+            _ => query.OrderByDescending(m => m.Id),
+        };
+        return await query.Take(count).ToListAsync();
     }
 
     public async Task<IReadOnlyList<PositionView>> GetPositionsAsync(ulong guildId, ulong userId, int? marketId = null, bool activeOnly = true)

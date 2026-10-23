@@ -107,9 +107,10 @@ public sealed class MarketModule(MarketService markets, MarketView view, IMarket
     }
 
     [SubSlashCommand("list", "Show the markets that are still running")]
-    public async Task ListAsync()
+    public async Task ListAsync(
+        [SlashCommandParameter(Description = "Order of the list (default: newest first)")] MarketSort sort = MarketSort.Newest)
     {
-        var open = await markets.ListMarketsAsync(GuildId, includeFinished: false);
+        var open = await markets.ListMarketsAsync(GuildId, includeFinished: false, sort: sort);
         if (open.Count == 0)
         {
             await RespondAsync(Ephemeral("No markets running right now. Start one with `/market create`!"));
@@ -124,8 +125,14 @@ public sealed class MarketModule(MarketService markets, MarketView view, IMarket
               .AppendLine($"YES {m.YesPrice():P0} · NO {1 - m.YesPrice():P0} · {markets.FormatMoney(m.Volume)} volume · {status}");
         }
 
+        var title = sort switch
+        {
+            MarketSort.ClosingSoon => "Running markets · closing soon",
+            MarketSort.MostTraded => "Running markets · most traded",
+            _ => "Running markets",
+        };
         await RespondAsync(InteractionCallback.Message(new InteractionMessageProperties()
-            .WithEmbeds([new EmbedProperties().WithTitle("Running markets").WithDescription(sb.ToString()).WithColor(new Color(0xFCEE0A))])
+            .WithEmbeds([new EmbedProperties().WithTitle(title).WithDescription(sb.ToString()).WithColor(new Color(0xFCEE0A))])
             .WithAllowedMentions(AllowedMentionsProperties.None)));
     }
 
