@@ -71,6 +71,41 @@ public class NexusModsClientTests
     }
 
     [Fact]
+    public async Task GetModsLooksUpTheGameOnceAndQueriesByUid()
+    {
+        const string modsByUid = """
+            {"data":{"modsByUid":{"totalCount":1,"nodes":[
+              {"modId":107,"name":"Cyber Engine Tweaks","author":"yamashi","createdAt":"2020-12-12T00:00:00Z",
+               "updatedAt":"2026-10-22T12:57:25Z","version":"1.38.0","adultContent":false}]}}}
+            """;
+        var handler = new StubHandler("""{"data":{"game":{"id":3333}}}""", modsByUid, modsByUid);
+        var client = CreateClient(handler);
+
+        var mod = Assert.Single(await client.GetModsAsync([107]));
+        await client.GetModsAsync([107]);
+
+        Assert.Equal(new DateTimeOffset(2026, 10, 22, 12, 57, 25, TimeSpan.Zero), mod.UpdatedAt);
+        Assert.Equal("1.38.0", mod.Version);
+        Assert.Equal(3, handler.Requests.Count);
+        Assert.Contains("\"cyberpunk2077\"", handler.Requests[0].Body);
+        // UID = game ID in the upper 32 bits, mod ID in the lower 32 (value taken from the live API).
+        Assert.Contains("\"14315125997675\"", handler.Requests[1].Body);
+    }
+
+    [Fact]
+    public async Task SearchFiltersByNameAndSortsByDownloads()
+    {
+        var handler = new StubHandler(Page((107, "Cyber Engine Tweaks", "2020-12-12T00:00:00Z")));
+        var mods = await CreateClient(handler).SearchModsAsync(" engine tw ", 10);
+
+        Assert.Equal(107, Assert.Single(mods).ModId);
+        var body = Assert.Single(handler.Requests).Body;
+        Assert.Contains("\"engine tw\"", body);
+        Assert.Contains("\"WILDCARD\"", body);
+        Assert.Contains("\"downloads\"", body);
+    }
+
+    [Fact]
     public async Task GraphQlErrorsBecomeNexusApiExceptions()
     {
         var handler = new StubHandler("""{"errors":[{"message":"Field 'nope' doesn't exist"}]}""");

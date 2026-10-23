@@ -9,7 +9,11 @@ public sealed record NexusMod(
     string? Category,
     DateTimeOffset CreatedAt,
     string? PictureUrl,
-    bool AdultContent)
+    bool AdultContent,
+    DateTimeOffset UpdatedAt,
+    string? Version)
 {
-    public string Url(string gameDomain) => $"https://www.nexusmods.com/{gameDomain}/mods/{ModId}";
+    public string Url(string gameDomain) => PageUrl(gameDomain, ModId);
+
+    public static string PageUrl(string gameDomain, int modId) => $"https://www.nexusmods.com/{gameDomain}/mods/{modId}";
 }

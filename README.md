@@ -24,6 +24,10 @@ People bet on which mods will be released on Nexus Mods before a deadline. The b
    - If the deadline passes without that, the market resolves **NO** (after a 15-minute grace period for late indexing).
 5. Winners are paid and the result is posted with links to the matching mods.
 
+**Update markets** work the same way for one existing mod:
+`/market update mod:Cyber Engine Tweaks duration:1w` → *"Will "Cyber Engine Tweaks" get an update?"*
+They resolve YES as soon as a new file (main or optional) is uploaded to that mod inside the window, otherwise NO after the deadline. Editing the mod page doesn't count.
+
 Moderators can also run free-form markets ("Will CDPR announce a patch this month?") and resolve them by hand.
 
 ## Commands
@@ -31,6 +35,7 @@ Moderators can also run free-form markets ("Will CDPR announce a patch this mont
 | Command | Who | What it does |
 |---|---|---|
 | `/market create duration [keyword] [category] [author] [count]` | everyone | Open a Nexus market. Filters are case-insensitive. `count` is the number of matching mods needed for YES (default 1). |
+| `/market update mod duration` | everyone | Open a market on whether a mod gets a new file. `mod` suggests Nexus mods as you type (most downloaded first); you can also enter a mod ID. |
 | `/market list` | everyone | Running markets with their odds |
 | `/market view market` | everyone | Re-post a market with its buttons |
 | `/market buy market side amount` | everyone | Buy YES/NO shares (the buttons do the same thing) |
@@ -112,7 +117,7 @@ dotnet test
 ```
 src/DiscordBot/
   Program.cs              host setup (NetCord gateway, DI, SQLite)
-  Data/                   EF Core entities + DbContext (SQLite, created on first start)
+  Data/                   EF Core entities, DbContext and migrations (SQLite, migrated on startup)
   Markets/                LMSR pricing, MarketService (trades, payouts), background resolver
   Nexus/                  Nexus Mods v2 GraphQL client, mod tracker cache, market criteria
   Discord/                embeds/buttons (MarketView), message updates, command modules
@@ -121,4 +126,12 @@ tests/DiscordBot.Tests/   xUnit tests for pricing, markets, resolution and the N
 
 Built with [NetCord](https://netcord.dev). It's still pre-1.0, so the package version is pinned exactly in `DiscordBot.csproj`; upgrade it on purpose.
 
-The database schema is created with `EnsureCreated`. If you change the entities before launch, delete `data/discordbot.db`. Add EF Core migrations once there's data worth keeping.
+The database schema is managed with EF Core migrations (`src/DiscordBot/Data/Migrations`), which the bot applies on startup.
+After changing an entity, add a migration (a test fails if you forget):
+
+```sh
+dotnet tool restore
+dotnet ef migrations add <Name> --project src/DiscordBot --output-dir Data/Migrations
+```
+
+Databases created before migrations were introduced can't be upgraded; the bot refuses to start and asks you to delete them.

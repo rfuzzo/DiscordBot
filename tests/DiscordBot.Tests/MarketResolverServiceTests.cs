@@ -23,6 +23,7 @@ public sealed class MarketResolverServiceTests : IDisposable
         _resolver = new MarketResolverService(
             _markets,
             new NexusModTracker(_nexus, _time, NullLogger<NexusModTracker>.Instance),
+            _nexus,
             _notifier,
             Microsoft.Extensions.Options.Options.Create(new MarketOptions()),
             _time,
@@ -102,13 +103,120 @@ public sealed class MarketResolverServiceTests : IDisposable
         await _resolver.RunOnceAsync();
 
         Assert.Empty(_notifier.Settlements);
-        Assert.Single(await _markets.GetUnsettledNexusMarketsAsync());
+        Assert.Single(await _markets.GetUnsettledMarketsAsync(MarketKind.Nexus));
+    }
+
+    private Task<Market> CreateUpdateMarketAsync(NexusMod target) =>
+        _markets.CreateMarketAsync(new CreateMarketRequest(
+            Guild, Channel, Alice, TimeSpan.FromDays(2), false, UpdateTarget: target));
+
+    [Fact]
+    public async Task UpdateMarketResolvesYesWhenTheModGetsANewFile()
+    {
+        var mod = Mod(107, "Cyber Engine Tweaks", Start.AddYears(-5), updatedAt: Start.AddDays(-3));
+        _nexus.Mods.Add(mod);
+        var market = await CreateUpdateMarketAsync(mod);
+        Assert.Equal(MarketKind.NexusUpdate, market.Kind);
+        Assert.Equal("Will \"Cyber Engine Tweaks\" get an update?", market.Question);
+        await _markets.BuyAsync(Guild, Bob, market.Id, Side.Yes, 100);
+
+        await _resolver.RunOnceAsync();
+        Assert.Empty(_notifier.Settlements);
+
+        _time.Advance(TimeSpan.FromHours(5));
+        _nexus.Mods[0] = mod with { UpdatedAt = _time.GetUtcNow(), Version = "1.39.0" };
+        await _resolver.RunOnceAsync();
+
+        var settlement = Assert.Single(_notifier.Settlements);
+        Assert.Equal(Side.Yes, settlement.Market.Outcome);
+        Assert.Contains("1.39.0", settlement.Market.ResolutionNote);
+        Assert.Equal(Bob, Assert.Single(settlement.Payouts).UserId);
+    }
+
+    [Fact]
+    public async Task UpdateMarketResolvesNoWhenNothingWasUploadedInTime()
+    {
+        var mod = Mod(107, "Cyber Engine Tweaks", Start.AddYears(-5), updatedAt: Start.AddDays(-3));
+        _nexus.Mods.Add(mod);
+        _nexus.FileUploads[107] = [Start.AddDays(-3)];
+        await CreateUpdateMarketAsync(mod);
+
+        _time.Advance(TimeSpan.FromDays(2));
+        await _resolver.RunOnceAsync();
+        Assert.Empty(_notifier.Settlements);
+
+        _time.Advance(new MarketOptions().ResolutionDelay);
+        await _resolver.RunOnceAsync();
+        Assert.Equal(Side.No, Assert.Single(_notifier.Settlements).Market.Outcome);
+    }
+
+    [Fact]
+    public async Task UpdateMarketCountsAnUploadThatWasFollowedByOneAfterTheDeadline()
+    {
+        var mod = Mod(107, "Cyber Engine Tweaks", Start.AddYears(-5), updatedAt: Start.AddDays(-3));
+        _nexus.Mods.Add(mod);
+        await CreateUpdateMarketAsync(mod);
+
+        // One file just before the deadline, another just after: updatedAt only shows the second.
+        var inWindow = Start.AddDays(2).AddMinutes(-1);
+        var afterDeadline = Start.AddDays(2).AddMinutes(1);
+        _nexus.Mods[0] = mod with { UpdatedAt = afterDeadline };
+        _nexus.FileUploads[107] = [Start.AddDays(-3), inWindow, afterDeadline];
+
+        _time.Advance(TimeSpan.FromDays(2) + new MarketOptions().ResolutionDelay);
+        await _resolver.RunOnceAsync();
+
+        var settlement = Assert.Single(_notifier.Settlements);
+        Assert.Equal(Side.Yes, settlement.Market.Outcome);
+    }
+
+    [Fact]
+    public async Task UpdateMarketResolvesNoWhenTheModDisappears()
+    {
+        var mod = Mod(107, "Cyber Engine Tweaks", Start.AddYears(-5), updatedAt: Start.AddDays(-3));
+        await CreateUpdateMarketAsync(mod);
+
+        _time.Advance(TimeSpan.FromDays(2) + new MarketOptions().ResolutionDelay);
+        await _resolver.RunOnceAsync();
+
+        var settlement = Assert.Single(_notifier.Settlements);
+        Assert.Equal(Side.No, settlement.Market.Outcome);
+        Assert.Contains("no longer available", settlement.Market.ResolutionNote);
+    }
+
+    [Fact]
+    public async Task NexusOutageLeavesUpdateMarketsPending()
+    {
+        var mod = Mod(107, "Cyber Engine Tweaks", Start.AddYears(-5), updatedAt: Start.AddDays(-3));
+        _nexus.Mods.Add(mod);
+        await CreateUpdateMarketAsync(mod);
+        _nexus.Fail = true;
+        _time.Advance(TimeSpan.FromDays(3));
+
+        await _resolver.RunOnceAsync();
+
+        Assert.Empty(_notifier.Settlements);
+        Assert.Single(await _markets.GetUnsettledMarketsAsync(MarketKind.NexusUpdate));
     }
 
     private sealed class FakeNexusClient : INexusModsClient
     {
         public List<NexusMod> Mods { get; } = [];
+        public Dictionary<int, List<DateTimeOffset>> FileUploads { get; } = [];
         public bool Fail { get; set; }
+
+        public Task<IReadOnlyList<NexusMod>> SearchModsAsync(string text, int count, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<NexusMod>>(Mods.Where(m => m.Name.Contains(text, StringComparison.OrdinalIgnoreCase)).Take(count).ToList());
+
+        public Task<IReadOnlyList<NexusMod>> GetModsAsync(IReadOnlyCollection<int> modIds, CancellationToken cancellationToken = default) =>
+            Fail
+                ? throw new NexusApiException("down")
+                : Task.FromResult<IReadOnlyList<NexusMod>>(Mods.Where(m => modIds.Contains(m.ModId)).ToList());
+
+        public Task<IReadOnlyList<DateTimeOffset>> GetFileUploadTimesAsync(int modId, CancellationToken cancellationToken = default) =>
+            Fail
+                ? throw new NexusApiException("down")
+                : Task.FromResult<IReadOnlyList<DateTimeOffset>>(FileUploads.GetValueOrDefault(modId) ?? []);
 
         public Task<IReadOnlyList<NexusMod>> GetLatestModsAsync(int count, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<NexusMod>>(Mods.OrderByDescending(m => m.CreatedAt).Take(count).ToList());
