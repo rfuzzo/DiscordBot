@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using DiscordBot.Data;
 using DiscordBot.Markets;
 using DiscordBot.Nexus;
@@ -16,25 +17,37 @@ public interface IMarketNotifier
 }
 
 /// <summary>Keeps posted market messages in sync and announces settlements.</summary>
-public sealed class MarketMessenger(GatewayClient client, MarketView view, ILogger<MarketMessenger> logger) : IMarketNotifier
+public sealed class MarketMessenger(GatewayClient client, MarketView view, MarketService markets, ILogger<MarketMessenger> logger)
+    : IMarketNotifier
 {
+    private readonly ConcurrentDictionary<int, SemaphoreSlim> _editLocks = new();
+
     /// <summary>Re-renders the market's original message (prices, status, buttons). Failures are logged, not thrown.</summary>
     public async Task RefreshAsync(Market market)
     {
-        if (market.MessageId is not { } messageId)
-            return;
-
+        // Several quick bets each trigger an edit, and those can reach Discord out of order. Editing one at a
+        // time and always rendering the market as it is now means the last edit shows the latest odds.
+        var editLock = _editLocks.GetOrAdd(market.Id, _ => new SemaphoreSlim(1, 1));
+        await editLock.WaitAsync();
         try
         {
-            await client.Rest.ModifyMessageAsync(market.ChannelId, messageId, m =>
+            var latest = await markets.GetMarketAsync(market.GuildId, market.Id) ?? market;
+            if (latest.MessageId is not { } messageId)
+                return;
+
+            await client.Rest.ModifyMessageAsync(latest.ChannelId, messageId, m =>
             {
-                m.Embeds = [view.BuildEmbed(market)];
-                m.Components = view.BuildComponents(market);
+                m.Embeds = [view.BuildEmbed(latest)];
+                m.Components = view.BuildComponents(latest);
             });
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Could not update message for market #{MarketId}", market.Id);
+        }
+        finally
+        {
+            editLock.Release();
         }
     }
 
