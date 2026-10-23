@@ -15,4 +15,19 @@ public class MarketViewTests
         Assert.Equal($"{MarketView.BetModalId}:42:{(int)side}", MarketView.BetModalCustomId(42, side));
         Assert.True(int.TryParse(MarketView.BetButtonCustomId(42, side).Split(':')[2], out _));
     }
+
+    [Fact]
+    public void OpenUpdateMarketsHaveTheirOwnColor()
+    {
+        using var db = new TestDatabase();
+        var view = new MarketView(
+            TestFactory.CreateService(db, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(TestFactory.Start)),
+            Microsoft.Extensions.Options.Options.Create(new DiscordBot.Nexus.NexusOptions()));
+        Market Open(MarketKind kind) => new() { Question = "?", Kind = kind, Status = MarketStatus.Open, Liquidity = 300 };
+
+        var newMod = view.BuildEmbed(Open(MarketKind.Nexus)).Color;
+        var update = view.BuildEmbed(Open(MarketKind.NexusUpdate)).Color;
+
+        Assert.NotEqual(newMod, update);
+    }
 }

@@ -16,6 +16,7 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
     public const string BetAmountInputId = "amount";
 
     private static readonly Color OpenColor = new(0xFCEE0A); // Cyberpunk yellow
+    private static readonly Color OpenUpdateColor = new(0x00E5FF); // Cyberpunk cyan, so update markets stand out from new-mod ones
     private static readonly Color ClosedColor = new(0x7F8C8D);
     private static readonly Color YesColor = new(0x2ECC71);
     private static readonly Color NoColor = new(0xE74C3C);
@@ -178,7 +179,7 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
 
     private static Color ColorFor(Market market) => market.Status switch
     {
-        MarketStatus.Open => OpenColor,
+        MarketStatus.Open => market.Kind == MarketKind.NexusUpdate ? OpenUpdateColor : OpenColor,
         MarketStatus.Closed => ClosedColor,
         MarketStatus.Resolved => market.Outcome == Side.Yes ? YesColor : NoColor,
         _ => CancelledColor,
