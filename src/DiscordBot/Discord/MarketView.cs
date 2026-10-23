@@ -23,6 +23,11 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
 
     private readonly NexusOptions _nexus = nexusOptions.Value;
 
+    // NetCord reads enum parameters in custom IDs by their numeric value only, so sides are written as numbers.
+    public static string BetButtonCustomId(int marketId, Side side) => $"{BetButtonId}:{marketId}:{(int)side}";
+
+    public static string BetModalCustomId(int marketId, Side side) => $"{BetModalId}:{marketId}:{(int)side}";
+
     public EmbedProperties BuildEmbed(Market market)
     {
         var yes = market.YesPrice();
@@ -57,8 +62,8 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
         [
             new ActionRowProperties(
             [
-                new ButtonProperties($"{BetButtonId}:{market.Id}:{Side.Yes}", "Bet YES", ButtonStyle.Success).WithDisabled(!tradable),
-                new ButtonProperties($"{BetButtonId}:{market.Id}:{Side.No}", "Bet NO", ButtonStyle.Danger).WithDisabled(!tradable),
+                new ButtonProperties(BetButtonCustomId(market.Id, Side.Yes),"Bet YES", ButtonStyle.Success).WithDisabled(!tradable),
+                new ButtonProperties(BetButtonCustomId(market.Id, Side.No),"Bet NO", ButtonStyle.Danger).WithDisabled(!tradable),
                 new ButtonProperties($"{PositionButtonId}:{market.Id}", "My position", ButtonStyle.Secondary),
             ]),
         ];
@@ -68,7 +73,7 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
     {
         var price = side == Side.Yes ? market.YesPrice() : 1 - market.YesPrice();
         return new ModalProperties(
-            $"{BetModalId}:{market.Id}:{side}",
+            BetModalCustomId(market.Id, side),
             Truncate($"Bet {side.Label()} on #{market.Id} (now {price:P0})", 45),
             [
                 new LabelProperties(
