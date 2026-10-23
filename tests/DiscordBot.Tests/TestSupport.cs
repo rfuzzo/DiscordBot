@@ -18,7 +18,7 @@ public sealed class TestDatabase : IDbContextFactory<BotDbContext>, IDisposable
         _connection.Open();
         _options = new DbContextOptionsBuilder<BotDbContext>().UseSqlite(_connection).Options;
         using var db = CreateDbContext();
-        db.Database.EnsureCreated();
+        db.Database.Migrate();
     }
 
     public BotDbContext CreateDbContext() => new(_options);
@@ -41,6 +41,6 @@ public static class TestFactory
             Microsoft.Extensions.Options.Options.Create(new NexusOptions()),
             time);
 
-    public static NexusMod Mod(int id, string name, DateTimeOffset createdAt, string? category = null, string? author = null) =>
-        new(id, name, null, author, author, category, createdAt, null, false);
+    public static NexusMod Mod(int id, string name, DateTimeOffset createdAt, string? category = null, string? author = null, DateTimeOffset? updatedAt = null) =>
+        new(id, name, null, author, author, category, createdAt, null, false, updatedAt ?? createdAt, "1.0");
 }

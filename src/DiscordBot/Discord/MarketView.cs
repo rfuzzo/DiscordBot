@@ -51,6 +51,8 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
 
         if (market.Kind == MarketKind.Nexus)
             embed.WithUrl($"https://www.nexusmods.com/games/{_nexus.GameDomain}/mods?sort=createdAt");
+        else if (market is { Kind: MarketKind.NexusUpdate, TargetModId: { } modId })
+            embed.WithUrl(NexusMod.PageUrl(_nexus.GameDomain, modId));
 
         return embed;
     }
@@ -101,7 +103,7 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
 
         if (matchingMods is { Count: > 0 })
         {
-            sb.AppendLine().AppendLine("**Matching mods**");
+            sb.AppendLine().AppendLine(market.Kind == MarketKind.NexusUpdate ? "**Updated mod**" : "**Matching mods**");
             foreach (var mod in matchingMods.Take(5))
                 sb.AppendLine($"• [{Escape(mod.Name)}]({mod.Url(_nexus.GameDomain)}) by {Escape(mod.Author ?? mod.Uploader ?? "unknown")}");
             if (matchingMods.Count > 5)
@@ -143,6 +145,13 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
         if (market.Kind == MarketKind.Custom)
             return $"Resolved by a moderator. Betting closes {Timestamp(market.ClosesAtUtc, 'f')}.";
 
+        if (market.Kind == MarketKind.NexusUpdate)
+            return $"YES once a new file is uploaded to [{Escape(market.TargetModName ?? $"mod #{market.TargetModId}")}]" +
+                   $"({NexusMod.PageUrl(_nexus.GameDomain, market.TargetModId ?? 0)}) on Nexus Mods " +
+                   $"between {Timestamp(market.OpensAtUtc, 'f')} and {Timestamp(market.ClosesAtUtc, 'f')} " +
+                   "(main or optional file; page edits don't count). " +
+                   "Resolves YES as soon as that happens, otherwise NO after the deadline.";
+
         var criteria = market.Criteria();
         var filters = new List<string>();
         if (criteria.Keyword is not null) filters.Add($"name contains \"{Escape(criteria.Keyword)}\"");
@@ -161,7 +170,7 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
     private static string StatusText(Market market) => market.Status switch
     {
         MarketStatus.Open => $"🟢 Open · closes {Timestamp(market.ClosesAtUtc)}",
-        MarketStatus.Closed => market.Kind == MarketKind.Nexus ? "🟡 Closed · checking Nexus…" : "🟡 Closed · awaiting moderator",
+        MarketStatus.Closed => market.Kind == MarketKind.Custom ? "🟡 Closed · awaiting moderator" : "🟡 Closed · checking Nexus…",
         MarketStatus.Resolved => $"🏁 Resolved **{market.Outcome?.Label()}**",
         MarketStatus.Cancelled => "⚫ Cancelled · refunded",
         _ => market.Status.ToString(),

@@ -15,7 +15,8 @@ public sealed record CreateMarketRequest(
     TimeSpan Duration,
     bool CreatorIsModerator,
     string? Question = null,
-    ModCriteria? Criteria = null);
+    ModCriteria? Criteria = null,
+    NexusMod? UpdateTarget = null);
 
 public sealed record TradeResult(Market Market, Side Side, double Shares, long Amount, long NewBalance, double PositionShares);
 
@@ -117,6 +118,10 @@ public sealed class MarketService(
                 throw new MarketException("The minimum number of mods must be at least 1.");
             question = criteria.ToQuestion(nexusOptions.Value.GameName);
         }
+        else if (request.UpdateTarget is { } target)
+        {
+            question = $"Will \"{target.Name}\" get an update?";
+        }
         else
         {
             question = request.Question?.Trim() ?? "";
@@ -147,11 +152,18 @@ public sealed class MarketService(
                 ChannelId = request.ChannelId,
                 CreatorId = request.CreatorId,
                 Question = question,
-                Kind = request.Criteria is null ? MarketKind.Custom : MarketKind.Nexus,
+                Kind = request switch
+                {
+                    { Criteria: not null } => MarketKind.Nexus,
+                    { UpdateTarget: not null } => MarketKind.NexusUpdate,
+                    _ => MarketKind.Custom,
+                },
                 Keyword = Normalize(request.Criteria?.Keyword),
                 Category = Normalize(request.Criteria?.Category),
                 Author = Normalize(request.Criteria?.Author),
                 MinCount = request.Criteria?.MinCount ?? 1,
+                TargetModId = request.UpdateTarget?.ModId,
+                TargetModName = request.UpdateTarget?.Name,
                 OpensAtUtc = now,
                 ClosesAtUtc = now + request.Duration,
                 Status = MarketStatus.Open,
@@ -338,12 +350,12 @@ public sealed class MarketService(
         }
     }
 
-    /// <summary>Nexus markets that are not settled yet (open or closed), across all guilds.</summary>
-    public async Task<IReadOnlyList<Market>> GetUnsettledNexusMarketsAsync()
+    /// <summary>Markets of one kind that are not settled yet (open or closed), across all guilds.</summary>
+    public async Task<IReadOnlyList<Market>> GetUnsettledMarketsAsync(MarketKind kind)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         return await db.Markets.AsNoTracking()
-            .Where(m => m.Kind == MarketKind.Nexus && (m.Status == MarketStatus.Open || m.Status == MarketStatus.Closed))
+            .Where(m => m.Kind == kind && (m.Status == MarketStatus.Open || m.Status == MarketStatus.Closed))
             .ToListAsync();
     }
 

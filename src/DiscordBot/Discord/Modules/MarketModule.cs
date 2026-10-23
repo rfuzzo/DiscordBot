@@ -10,7 +10,7 @@ using static DiscordBot.Discord.Modules.BotModuleHelpers;
 namespace DiscordBot.Discord.Modules;
 
 [SlashCommand("market", "Bet play money on upcoming Nexus mods", Contexts = [InteractionContextType.Guild])]
-public sealed class MarketModule(MarketService markets, MarketView view, IMarketNotifier notifier)
+public sealed class MarketModule(MarketService markets, MarketView view, IMarketNotifier notifier, INexusModsClient nexus)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
     private ulong GuildId => Context.Interaction.GuildId ?? throw new InvalidOperationException("Guild-only command.");
@@ -46,6 +46,56 @@ public sealed class MarketModule(MarketService markets, MarketView view, IMarket
                 span,
                 IsModerator(Context.User),
                 Criteria: new ModCriteria(keyword, category, author, count)));
+        }
+        catch (MarketException ex)
+        {
+            await RespondAsync(Ephemeral(ex.Message));
+            return;
+        }
+
+        await PostMarketAsync(market);
+    }
+
+    [SubSlashCommand("update", "Open a market on whether a mod gets updated before a deadline")]
+    public async Task UpdateAsync(
+        [SlashCommandParameter(Description = "The mod: start typing its name, or enter its Nexus mod ID", AutocompleteProviderType = typeof(ModAutocomplete))] int mod,
+        [SlashCommandParameter(Description = "How long betting stays open, e.g. 12h, 3d, 1w, 1d12h")] string duration)
+    {
+        if (!DurationParser.TryParse(duration, out var span))
+        {
+            await RespondAsync(Ephemeral("I couldn't read that duration. Try something like `12h`, `3d`, `1w` or `1d12h`."));
+            return;
+        }
+
+        // Discord drops the interaction after 3 seconds, so don't wait on a slow Nexus.
+        NexusMod? target;
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2.5));
+            target = (await nexus.GetModsAsync([mod], timeout.Token)).FirstOrDefault();
+        }
+        catch (Exception ex) when (ex is NexusApiException or OperationCanceledException)
+        {
+            await RespondAsync(Ephemeral("Nexus Mods didn't answer in time. Please try again in a moment."));
+            return;
+        }
+
+        if (target is null)
+        {
+            await RespondAsync(Ephemeral($"I couldn't find mod {mod} on Nexus Mods. Pick one from the suggestions while typing."));
+            return;
+        }
+
+        Market market;
+        try
+        {
+            market = await markets.CreateMarketAsync(new CreateMarketRequest(
+                GuildId,
+                Context.Interaction.Channel.Id,
+                Context.User.Id,
+                span,
+                IsModerator(Context.User),
+                UpdateTarget: target));
         }
         catch (MarketException ex)
         {
@@ -225,5 +275,39 @@ public sealed class MarketAutocomplete(MarketService markets) : IAutocompletePro
                 var name = $"#{m.Id} {m.Question}";
                 return new ApplicationCommandOptionChoiceProperties(name.Length > 100 ? name[..99] + "…" : name, m.Id);
             });
+    }
+}
+
+/// <summary>Suggests Nexus mods by name (most downloaded first) or by mod ID for "mod" parameters.</summary>
+public sealed class ModAutocomplete(INexusModsClient nexus) : IAutocompleteProvider<AutocompleteInteractionContext>
+{
+    public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(
+        ApplicationCommandInteractionDataOption option, AutocompleteInteractionContext context)
+    {
+        var input = option.Value?.Trim() ?? "";
+        if (input.Length < 2)
+            return [];
+
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2.5));
+            var mods = new List<NexusMod>();
+            if (int.TryParse(input, out var modId) && modId > 0)
+                mods.AddRange(await nexus.GetModsAsync([modId], timeout.Token));
+            mods.AddRange(await nexus.SearchModsAsync(input, 25, timeout.Token));
+
+            return mods
+                .DistinctBy(m => m.ModId)
+                .Take(25)
+                .Select(m =>
+                {
+                    var name = $"{m.Name} · by {m.Author ?? m.Uploader ?? "unknown"} (#{m.ModId})";
+                    return new ApplicationCommandOptionChoiceProperties(name.Length > 100 ? name[..99] + "…" : name, m.ModId);
+                });
+        }
+        catch (Exception ex) when (ex is NexusApiException or OperationCanceledException)
+        {
+            return [];
+        }
     }
 }

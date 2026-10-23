@@ -13,6 +13,9 @@ public enum MarketKind
 
     /// <summary>Free-form question resolved by a moderator.</summary>
     Custom,
+
+    /// <summary>Resolved automatically when one specific mod gets a new file on Nexus Mods.</summary>
+    NexusUpdate,
 }
 
 public enum MarketStatus
@@ -51,6 +54,10 @@ public class Market
     public string? Category { get; set; }
     public string? Author { get; set; }
     public int MinCount { get; set; } = 1;
+
+    // The mod an update market is about (only used for MarketKind.NexusUpdate)
+    public int? TargetModId { get; set; }
+    public string? TargetModName { get; set; }
 
     public DateTime OpensAtUtc { get; set; }
     public DateTime ClosesAtUtc { get; set; }

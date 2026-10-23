@@ -7,7 +7,7 @@ obj/
 TestResults/
 
 # Local bot data and secrets
-data/
+/data/
 *.db
 *.db-shm
 *.db-wal

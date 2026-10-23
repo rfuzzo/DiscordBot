@@ -48,6 +48,16 @@ var host = builder.Build();
 host.AddModules(typeof(Program).Assembly);
 
 await using (var db = await host.Services.GetRequiredService<IDbContextFactory<BotDbContext>>().CreateDbContextAsync())
-    await db.Database.EnsureCreatedAsync();
+{
+    // Databases from before migrations were added have the tables but no migration history, so Migrate would fail on them.
+    var legacy = !(await db.Database.GetAppliedMigrationsAsync()).Any()
+                 && await db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = 'Markets'").SingleAsync() > 0;
+    if (legacy)
+        throw new InvalidOperationException(
+            $"The database at {databasePath} was created by an older version of the bot and can't be upgraded. " +
+            "Delete it (together with its -wal and -shm files) to start fresh.");
+
+    await db.Database.MigrateAsync();
+}
 
 await host.RunAsync();
