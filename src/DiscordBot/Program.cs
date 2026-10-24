@@ -1,5 +1,6 @@
 using DiscordBot.Data;
 using DiscordBot.Discord;
+using DiscordBot.Eta;
 using DiscordBot.Markets;
 using DiscordBot.Nexus;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,7 @@ builder.Services.AddDbContextFactory<BotDbContext>(o => o.UseSqlite($"Data Sourc
 builder.Services
     .AddSingleton(TimeProvider.System)
     .AddSingleton<MarketService>()
+    .AddSingleton<EtaService>()
     .AddSingleton<NexusModTracker>()
     .AddSingleton<MarketView>()
     .AddSingleton<IMarketNotifier, MarketMessenger>()

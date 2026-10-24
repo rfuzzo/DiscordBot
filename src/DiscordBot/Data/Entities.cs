@@ -112,3 +112,10 @@ public class Trade
     public double YesPriceAfter { get; set; }
     public DateTime AtUtc { get; set; }
 }
+
+/// <summary>How many times /eta has pushed the core mods update back in a guild.</summary>
+public class EtaCounter
+{
+    public ulong GuildId { get; set; }
+    public int Count { get; set; }
+}

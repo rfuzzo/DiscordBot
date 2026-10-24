@@ -17,6 +17,19 @@ namespace DiscordBot.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("DiscordBot.Data.EtaCounter", b =>
+                {
+                    b.Property<ulong>("GuildId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("GuildId");
+
+                    b.ToTable("EtaCounters");
+                });
+
             modelBuilder.Entity("DiscordBot.Data.Market", b =>
                 {
                     b.Property<int>("Id")

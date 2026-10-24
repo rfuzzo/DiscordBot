@@ -9,6 +9,7 @@ public class BotDbContext(DbContextOptions<BotDbContext> options) : DbContext(op
     public DbSet<Market> Markets => Set<Market>();
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<Trade> Trades => Set<Trade>();
+    public DbSet<EtaCounter> EtaCounters => Set<EtaCounter>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,12 @@ public class BotDbContext(DbContextOptions<BotDbContext> options) : DbContext(op
         {
             e.Property(t => t.Side).HasConversion<string>();
             e.HasIndex(t => t.MarketId);
+        });
+
+        modelBuilder.Entity<EtaCounter>(e =>
+        {
+            e.HasKey(c => c.GuildId);
+            e.Property(c => c.GuildId).ValueGeneratedNever();
         });
     }
 
