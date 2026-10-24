@@ -35,6 +35,24 @@ public sealed class MarketButtonModule(MarketService markets, MarketView view)
         await RespondAsync(Ephemeral(
             $"{DescribePositions(markets, positions)}\nBalance: {markets.FormatMoney(wallet.Balance)}"));
     }
+
+    /// <summary>Redraws the message the button is on, so copies posted with /market view can catch up too.</summary>
+    [ComponentInteraction(MarketView.RefreshButtonId)]
+    public async Task RefreshAsync(int marketId)
+    {
+        var market = await markets.GetMarketAsync(Context.Interaction.GuildId!.Value, marketId);
+        if (market is null)
+        {
+            await RespondAsync(Ephemeral($"Market #{marketId} doesn't exist anymore."));
+            return;
+        }
+
+        await RespondAsync(InteractionCallback.ModifyMessage(m =>
+        {
+            m.Embeds = [view.BuildEmbed(market)];
+            m.Components = view.BuildComponents(market);
+        }));
+    }
 }
 
 /// <summary>The "how much do you want to bet" popup.</summary>

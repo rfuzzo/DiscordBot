@@ -12,6 +12,7 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
 {
     public const string BetButtonId = "market-bet";
     public const string PositionButtonId = "market-position";
+    public const string RefreshButtonId = "market-refresh";
     public const string BetModalId = "market-bet-modal";
     public const string BetAmountInputId = "amount";
 
@@ -68,6 +69,7 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
                 new ButtonProperties(BetButtonCustomId(market.Id, Side.Yes),"Bet YES", ButtonStyle.Success).WithDisabled(!tradable),
                 new ButtonProperties(BetButtonCustomId(market.Id, Side.No),"Bet NO", ButtonStyle.Danger).WithDisabled(!tradable),
                 new ButtonProperties($"{PositionButtonId}:{market.Id}", "My position", ButtonStyle.Secondary),
+                new ButtonProperties($"{RefreshButtonId}:{market.Id}", "🔄 Refresh", ButtonStyle.Secondary),
             ]),
         ];
     }

@@ -17,6 +17,23 @@ public class MarketViewTests
     }
 
     [Fact]
+    public void FinishedMarketsKeepTheRefreshButtonButNotTheBetButtons()
+    {
+        using var db = new TestDatabase();
+        var view = new MarketView(
+            TestFactory.CreateService(db, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(TestFactory.Start)),
+            Microsoft.Extensions.Options.Options.Create(new DiscordBot.Nexus.NexusOptions()));
+        var market = new Market { Id = 7, Question = "?", Status = MarketStatus.Resolved, Outcome = Side.Yes, Liquidity = 300 };
+
+        var buttons = view.BuildComponents(market).OfType<NetCord.Rest.ActionRowProperties>()
+            .SelectMany(r => r).OfType<NetCord.Rest.ButtonProperties>().ToList();
+
+        Assert.All(buttons.Where(b => b.CustomId.StartsWith(MarketView.BetButtonId + ":")), b => Assert.True(b.Disabled));
+        var refresh = Assert.Single(buttons, b => b.CustomId == $"{MarketView.RefreshButtonId}:7");
+        Assert.False(refresh.Disabled == true);
+    }
+
+    [Fact]
     public void OpenUpdateMarketsHaveTheirOwnColor()
     {
         using var db = new TestDatabase();
