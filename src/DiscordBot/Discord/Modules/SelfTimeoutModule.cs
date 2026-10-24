@@ -89,8 +89,10 @@ public sealed class SelfTimeoutButtonModule(MarketService markets, TimeProvider 
 
         try
         {
-            await Context.Client.Rest.ModifyGuildUserAsync(guildId, userId,
-                u => u.TimeOutUntil = time.GetUtcNow().AddMinutes(minutes));
+            // A new timeout replaces a running one, so start this one where the running one ends: every paid minute is sat out.
+            var now = time.GetUtcNow();
+            var start = Context.User is GuildInteractionUser { TimeOutUntil: { } until } && until > now ? until : now;
+            await Context.Client.Rest.ModifyGuildUserAsync(guildId, userId, u => u.TimeOutUntil = start.AddMinutes(minutes));
         }
         catch (RestException ex)
         {
