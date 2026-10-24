@@ -32,12 +32,12 @@ public sealed class EtaService(IDbContextFactory<BotDbContext> dbFactory, TimePr
         }
     }
 
-    /// <summary>The announcement, e.g. "Due to @x's incessant nagging, the core mods update will be delayed by 3 days on 27 October 2026."</summary>
+    /// <summary>The announcement, e.g. "Due to @x's incessant nagging, the core mods update will be delayed by 3 days and will now release on 27 October 2026."</summary>
     public string Announcement(ulong naggerId, int delayDays)
     {
         var releaseDate = time.GetUtcNow().AddDays(delayDays);
         var days = delayDays == 1 ? "1 day" : $"{delayDays} days";
         return $"Due to <@{naggerId}>'s incessant nagging, the core mods update will be delayed by {days} " +
-               $"on <t:{releaseDate.ToUnixTimeSeconds()}:D>.";
+               $"and will now release on <t:{releaseDate.ToUnixTimeSeconds()}:D>.";
     }
 }

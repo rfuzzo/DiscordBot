@@ -36,8 +36,8 @@ public sealed class EtaServiceTests : IDisposable
         var text = _eta.Announcement(Bob, 3);
         var releaseDate = Start.AddDays(3).ToUnixTimeSeconds();
         Assert.Equal(
-            $"Due to <@{Bob}>'s incessant nagging, the core mods update will be delayed by 3 days on <t:{releaseDate}:D>.",
+            $"Due to <@{Bob}>'s incessant nagging, the core mods update will be delayed by 3 days and will now release on <t:{releaseDate}:D>.",
             text);
-        Assert.Contains("by 1 day on", _eta.Announcement(Bob, 1));
+        Assert.Contains("by 1 day and will now release on", _eta.Announcement(Bob, 1));
     }
 }
