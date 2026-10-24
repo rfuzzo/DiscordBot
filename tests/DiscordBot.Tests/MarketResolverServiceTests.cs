@@ -238,8 +238,6 @@ public sealed class MarketResolverServiceTests : IDisposable
             return Task.CompletedTask;
         }
 
-        public Task MoveMessageAsync(Market market, ulong channelId, ulong messageId) => Task.CompletedTask;
-
         public Task AnnounceSettlementAsync(SettlementResult settlement, IReadOnlyList<NexusMod>? matchingMods = null)
         {
             Settlements.Add(settlement);

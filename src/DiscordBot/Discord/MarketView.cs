@@ -125,12 +125,6 @@ public sealed class MarketView(MarketService markets, Microsoft.Extensions.Optio
             .WithColor(ColorFor(market));
     }
 
-    /// <summary>What an older copy of a market message turns into once the market is shown in a newer message.</summary>
-    public EmbedProperties BuildMovedEmbed(Market market, string jumpUrl) => new EmbedProperties()
-        .WithTitle(Truncate($"#{market.Id} · {market.Question}", 256))
-        .WithDescription($"This market moved to a [newer message]({jumpUrl}), which has the live odds and the bet buttons.")
-        .WithColor(ClosedColor);
-
     public EmbedProperties BuildModListEmbed(string title, IReadOnlyList<NexusMod> mods)
     {
         var sb = new StringBuilder();

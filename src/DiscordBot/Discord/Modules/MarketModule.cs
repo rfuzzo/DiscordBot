@@ -148,8 +148,6 @@ public sealed class MarketModule(MarketService markets, MarketView view, IMarket
         }
 
         await RespondAsync(MarketMessage(view, m));
-        var response = await GetResponseAsync();
-        await notifier.MoveMessageAsync(m, response.ChannelId, response.Id);
     }
 
     [SubSlashCommand("buy", "Buy YES or NO shares")]
