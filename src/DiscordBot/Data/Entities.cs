@@ -118,4 +118,7 @@ public class EtaCounter
 {
     public ulong GuildId { get; set; }
     public int Count { get; set; }
+
+    /// <summary>The release date the last /eta announced.</summary>
+    public DateTime? ReleaseAtUtc { get; set; }
 }

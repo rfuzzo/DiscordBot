@@ -25,6 +25,9 @@ namespace DiscordBot.Data.Migrations
                     b.Property<int>("Count")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("ReleaseAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("GuildId");
 
                     b.ToTable("EtaCounters");
