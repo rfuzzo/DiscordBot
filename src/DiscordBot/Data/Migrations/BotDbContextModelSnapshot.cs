@@ -33,6 +33,19 @@ namespace DiscordBot.Data.Migrations
                     b.ToTable("EtaCounters");
                 });
 
+            modelBuilder.Entity("DiscordBot.Data.EtaMessage", b =>
+                {
+                    b.Property<ulong>("MessageId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("GuildId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("MessageId");
+
+                    b.ToTable("EtaMessages");
+                });
+
             modelBuilder.Entity("DiscordBot.Data.Market", b =>
                 {
                     b.Property<int>("Id")

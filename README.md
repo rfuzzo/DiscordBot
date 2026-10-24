@@ -44,8 +44,7 @@ Moderators can also run free-form markets ("Will CDPR announce a patch this mont
 | `/daily` | everyone | +100 €$ once per UTC day |
 | `/leaderboard` | everyone | Richest forecasters on the server |
 | `/nexus latest [count]` | everyone | Newest Cyberpunk 2077 mods; handy for checking the Nexus connection |
-| `/eta [user]` | everyone | "Due to @you's incessant nagging, the core mods update will be delayed by n days and will now release on <date>." Each use adds a day (per server). `user` blames someone else |
-| Apps → **ETA** (on a message) | everyone | Same, but blames the author of that message. Slash commands can't see which message you replied to, so this is the "reply" version |
+| Apps → **ETA** (on a message) | everyone | "Due to @author's incessant nagging, the core mods update will be delayed by n days and will now release on <date>." Each use adds a day (per server). Works once per message, and not on your own messages |
 | `/when` | everyone | "Due to N users nagging, the core mods update has been delayed by N days. It is now scheduled for <date>." Just shows the status; doesn't add a delay |
 | `/market-admin custom question duration` | Manage Server | Free-form market resolved by a moderator |
 | `/market-admin resolve market outcome [note]` | Manage Server | Settle any market by hand |

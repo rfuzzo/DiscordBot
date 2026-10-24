@@ -17,26 +17,37 @@ public sealed class EtaServiceTests : IDisposable
     [Fact]
     public async Task EachNagAddsADayPerGuild()
     {
-        Assert.Equal(1, (await _eta.AddNagAsync(Guild)).DelayDays);
-        Assert.Equal(2, (await _eta.AddNagAsync(Guild)).DelayDays);
-        Assert.Equal(1, (await _eta.AddNagAsync(Guild + 1)).DelayDays);
-        Assert.Equal(3, (await _eta.AddNagAsync(Guild)).DelayDays);
+        Assert.Equal(1, (await _eta.AddNagAsync(Guild, 1001))!.DelayDays);
+        Assert.Equal(2, (await _eta.AddNagAsync(Guild, 1002))!.DelayDays);
+        Assert.Equal(1, (await _eta.AddNagAsync(Guild + 1, 2001))!.DelayDays);
+        Assert.Equal(3, (await _eta.AddNagAsync(Guild, 1003))!.DelayDays);
+    }
+
+    [Fact]
+    public async Task EachMessageOnlyCountsOnce()
+    {
+        Assert.NotNull(await _eta.AddNagAsync(Guild, 1001));
+        Assert.Null(await _eta.AddNagAsync(Guild, 1001));
+        Assert.Null(await new EtaService(_db, _time).AddNagAsync(Guild, 1001));
+
+        Assert.Equal(1, (await _eta.GetStatusAsync(Guild)).DelayDays);
+        Assert.Equal(2, (await _eta.AddNagAsync(Guild, 1002))!.DelayDays);
     }
 
     [Fact]
     public async Task CounterSurvivesARestart()
     {
-        await _eta.AddNagAsync(Guild);
+        await _eta.AddNagAsync(Guild, 1001);
         var afterRestart = new EtaService(_db, _time);
-        Assert.Equal(2, (await afterRestart.AddNagAsync(Guild)).DelayDays);
+        Assert.Equal(2, (await afterRestart.AddNagAsync(Guild, 1002))!.DelayDays);
     }
 
     [Fact]
     public async Task StatusShowsTheLastAnnouncedDateWithoutAddingANag()
     {
-        await _eta.AddNagAsync(Guild);
+        await _eta.AddNagAsync(Guild, 1001);
         _time.Advance(TimeSpan.FromHours(5));
-        var nag = await _eta.AddNagAsync(Guild);
+        var nag = (await _eta.AddNagAsync(Guild, 1002))!;
         _time.Advance(TimeSpan.FromDays(1));
 
         var status = await _eta.GetStatusAsync(Guild);

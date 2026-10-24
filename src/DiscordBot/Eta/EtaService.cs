@@ -14,13 +14,20 @@ public sealed class EtaService(IDbContextFactory<BotDbContext> dbFactory, TimePr
 {
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    /// <summary>Counts one more nag; the delay grows by a day (1 on the first use).</summary>
-    public async Task<EtaNag> AddNagAsync(ulong guildId)
+    /// <summary>
+    /// Counts one more nag for the given message; the delay grows by a day (1 on the first use).
+    /// Returns null if that message was already used, since each message only counts once.
+    /// </summary>
+    public async Task<EtaNag?> AddNagAsync(ulong guildId, ulong messageId)
     {
         await _lock.WaitAsync();
         try
         {
             await using var db = await dbFactory.CreateDbContextAsync();
+            if (await db.EtaMessages.FindAsync(messageId) is not null)
+                return null;
+            db.EtaMessages.Add(new EtaMessage { MessageId = messageId, GuildId = guildId });
+
             var counter = await db.EtaCounters.FindAsync(guildId);
             if (counter is null)
             {
@@ -49,7 +56,7 @@ public sealed class EtaService(IDbContextFactory<BotDbContext> dbFactory, TimePr
             counter?.ReleaseAtUtc is { } releaseAt ? new DateTimeOffset(releaseAt, TimeSpan.Zero) : null);
     }
 
-    /// <summary>The /eta announcement, e.g. "Due to @x's incessant nagging, the core mods update will be delayed by 3 days and will now release on 27 October 2026."</summary>
+    /// <summary>The ETA announcement, e.g. "Due to @x's incessant nagging, the core mods update will be delayed by 3 days and will now release on 27 October 2026."</summary>
     public static string Announcement(ulong naggerId, EtaNag nag) =>
         $"Due to <@{naggerId}>'s incessant nagging, the core mods update will be delayed by {Days(nag.DelayDays)} " +
         $"and will now release on {Date(nag.ReleaseAt)}.";

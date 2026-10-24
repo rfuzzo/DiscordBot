@@ -113,12 +113,19 @@ public class Trade
     public DateTime AtUtc { get; set; }
 }
 
-/// <summary>How many times /eta has pushed the core mods update back in a guild.</summary>
+/// <summary>How many times the ETA command has pushed the core mods update back in a guild.</summary>
 public class EtaCounter
 {
     public ulong GuildId { get; set; }
     public int Count { get; set; }
 
-    /// <summary>The release date the last /eta announced.</summary>
+    /// <summary>The release date the last ETA announced.</summary>
     public DateTime? ReleaseAtUtc { get; set; }
+}
+
+/// <summary>A message the ETA command was already used on; each message can only delay the update once.</summary>
+public class EtaMessage
+{
+    public ulong MessageId { get; set; }
+    public ulong GuildId { get; set; }
 }

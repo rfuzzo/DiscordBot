@@ -10,6 +10,7 @@ public class BotDbContext(DbContextOptions<BotDbContext> options) : DbContext(op
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<Trade> Trades => Set<Trade>();
     public DbSet<EtaCounter> EtaCounters => Set<EtaCounter>();
+    public DbSet<EtaMessage> EtaMessages => Set<EtaMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,12 @@ public class BotDbContext(DbContextOptions<BotDbContext> options) : DbContext(op
         {
             e.HasKey(c => c.GuildId);
             e.Property(c => c.GuildId).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<EtaMessage>(e =>
+        {
+            e.HasKey(m => m.MessageId);
+            e.Property(m => m.MessageId).ValueGeneratedNever();
         });
     }
 
