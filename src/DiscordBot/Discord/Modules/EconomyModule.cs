@@ -7,7 +7,7 @@ using static DiscordBot.Discord.Modules.BotModuleHelpers;
 
 namespace DiscordBot.Discord.Modules;
 
-public sealed class EconomyModule(MarketService markets) : ApplicationCommandModule<ApplicationCommandContext>
+public sealed class EconomyModule(MarketService markets, UserNameResolver userNames) : ApplicationCommandModule<ApplicationCommandContext>
 {
     private ulong GuildId => Context.Interaction.GuildId ?? throw new InvalidOperationException("Guild-only command.");
 
@@ -37,19 +37,23 @@ public sealed class EconomyModule(MarketService markets) : ApplicationCommandMod
     [SlashCommand("leaderboard", "The richest forecasters on this server", Contexts = [InteractionContextType.Guild])]
     public async Task LeaderboardAsync()
     {
+        // Looking up names can take a moment; Discord only waits 3 seconds for the first answer.
+        await RespondAsync(InteractionCallback.DeferredMessage());
+
         var top = await markets.GetLeaderboardAsync(GuildId, 10);
+        var names = await userNames.GetNamesAsync(GuildId, top.Select(w => w.UserId));
         var sb = new StringBuilder();
         for (var i = 0; i < top.Count; i++)
         {
             var medal = i switch { 0 => "🥇", 1 => "🥈", 2 => "🥉", _ => $"`{i + 1}.`" };
-            sb.AppendLine($"{medal} <@{top[i].UserId}> · {markets.FormatMoney(top[i].Balance)}");
+            sb.AppendLine($"{medal} **{MarketView.Escape(names[top[i].UserId])}** · {markets.FormatMoney(top[i].Balance)}");
         }
 
-        await RespondAsync(InteractionCallback.Message(new InteractionMessageProperties()
+        await FollowupAsync(new InteractionMessageProperties()
             .WithEmbeds([new EmbedProperties()
                 .WithTitle("Leaderboard")
                 .WithDescription(sb.Length == 0 ? "Nobody has placed a bet yet." : sb.ToString())
                 .WithColor(new Color(0xFCEE0A))])
-            .WithAllowedMentions(AllowedMentionsProperties.None)));
+            .WithAllowedMentions(AllowedMentionsProperties.None));
     }
 }

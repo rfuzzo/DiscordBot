@@ -35,6 +35,7 @@ builder.Services
     .AddSingleton<EtaService>()
     .AddSingleton<NexusModTracker>()
     .AddSingleton<MarketView>()
+    .AddSingleton<UserNameResolver>()
     .AddSingleton<IMarketNotifier, MarketMessenger>()
     .AddHostedService<MarketResolverService>();
 builder.Services.AddHttpClient<INexusModsClient, NexusModsClient>();
