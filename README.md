@@ -81,7 +81,7 @@ Settings come from `src/DiscordBot/appsettings.json`, which you can override wit
 | Game | `Nexus__GameDomain` / `Nexus__GameName` | `cyberpunk2077` / `Cyberpunk 2077` |
 | Database file | `Database__Path` | `data/discordbot.db` (relative to the working directory) |
 | Starting balance / daily bonus | `Market__StartingBalance` / `Market__DailyBonus` | `1000` / `100` |
-| Liquidity (how much prices move per bet; higher means they move less) | `Market__Liquidity` | `300` |
+| Liquidity of new markets (how much prices move per bet; higher means they move less, but the bot can lose up to ~0.7× this per market) | `Market__Liquidity` | `2000` |
 | Duration limits | `Market__MinDuration` / `Market__MaxDuration` | `01:00:00` / `30.00:00:00` |
 | Open markets per user | `Market__MaxOpenMarketsPerUser` | `3` |
 | Self-timeout pay / daily limit | `Market__SelfTimeoutPerMinute` / `Market__SelfTimeoutDailyLimit` | `10` / `500` |

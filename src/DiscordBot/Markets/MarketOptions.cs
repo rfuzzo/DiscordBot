@@ -18,9 +18,10 @@ public sealed class MarketOptions
 
     /// <summary>
     /// LMSR liquidity for new markets. Higher = prices move less per bet.
-    /// With 300, a 100 €$ bet on a fresh market moves it from 50% to about 64%.
+    /// With 2000, a 1000 €$ bet on a fresh market moves it from 50% to about 70%. Only applies to new markets;
+    /// each market keeps the value it was created with.
     /// </summary>
-    public double Liquidity { get; set; } = 300;
+    public double Liquidity { get; set; } = 2000;
 
     public TimeSpan MinDuration { get; set; } = TimeSpan.FromHours(1);
     public TimeSpan MaxDuration { get; set; } = TimeSpan.FromDays(30);
