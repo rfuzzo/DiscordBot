@@ -42,6 +42,7 @@ Moderators can also run free-form markets ("Will CDPR announce a patch this mont
 | `/market sell market side [shares]` | everyone | Sell shares back (all of them if `shares` is left empty) |
 | `/wallet` | everyone | Your balance and open positions |
 | `/daily` | everyone | +100 €$ once per UTC day |
+| `/getbacktowork length` | everyone | Time yourself out for 1, 5, 10 or 30 minutes and earn 10 €$ per minute, up to 500 €$ per UTC day. Asks for confirmation first; announced in the channel |
 | `/leaderboard` | everyone | Richest forecasters on the server |
 | `/nexus latest [count]` | everyone | Newest Cyberpunk 2077 mods; handy for checking the Nexus connection |
 | Apps → **ETA** (on a message) | everyone | "Due to @author's incessant nagging, the core mods update will be delayed by n days and will now release on <date>." Each use adds a day (per server). Works once per message, and not on your own messages |
@@ -59,7 +60,7 @@ Markets can run from 1 hour to 30 days. Each server has its own wallets and lead
 ### 1. Create the Discord application
 
 1. Go to <https://discord.com/developers/applications> → **New Application** → **Bot** → **Reset Token**, and copy the token.
-2. Under **OAuth2 → URL Generator**, select the scopes `bot` and `applications.commands`, plus these bot permissions: *Send Messages*, *Embed Links*, *Read Message History*.
+2. Under **OAuth2 → URL Generator**, select the scopes `bot` and `applications.commands`, plus these bot permissions: *Send Messages*, *Embed Links*, *Read Message History*, and *Timeout Members* for `/getbacktowork` (the bot's role must also be above the roles of the people it times out).
    Open the generated URL to invite the bot to your server.
 
 No privileged gateway intents are needed.
@@ -83,6 +84,7 @@ Settings come from `src/DiscordBot/appsettings.json`, which you can override wit
 | Liquidity (how much prices move per bet; higher means they move less) | `Market__Liquidity` | `300` |
 | Duration limits | `Market__MinDuration` / `Market__MaxDuration` | `01:00:00` / `30.00:00:00` |
 | Open markets per user | `Market__MaxOpenMarketsPerUser` | `3` |
+| Self-timeout pay / daily limit | `Market__SelfTimeoutPerMinute` / `Market__SelfTimeoutDailyLimit` | `10` / `500` |
 
 For local development you can keep secrets out of the repo with user secrets:
 

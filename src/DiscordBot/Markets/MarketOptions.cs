@@ -33,4 +33,10 @@ public sealed class MarketOptions
 
     /// <summary>Open markets one user may have created at the same time (moderators are exempt).</summary>
     public int MaxOpenMarketsPerUser { get; set; } = 3;
+
+    /// <summary>Eddies per minute of /getbacktowork self-timeout.</summary>
+    public long SelfTimeoutPerMinute { get; set; } = 10;
+
+    /// <summary>Most eddies a user can earn with /getbacktowork per UTC day.</summary>
+    public long SelfTimeoutDailyLimit { get; set; } = 500;
 }

@@ -37,6 +37,10 @@ public class Wallet
     public ulong UserId { get; set; }
     public long Balance { get; set; }
     public DateTime? LastDailyClaimUtc { get; set; }
+
+    /// <summary>Eddies earned with /getbacktowork on <see cref="SelfTimeoutDayUtc"/>; counts against the daily limit.</summary>
+    public long SelfTimeoutEarned { get; set; }
+    public DateTime? SelfTimeoutDayUtc { get; set; }
 }
 
 public class Market

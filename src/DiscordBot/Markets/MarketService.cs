@@ -38,6 +38,8 @@ public sealed record Payout(ulong UserId, long Amount);
 
 public sealed record SettlementResult(Market Market, IReadOnlyList<Payout> Payouts);
 
+public sealed record SelfTimeoutResult(long Amount, long Balance);
+
 public sealed record DailyResult(bool Claimed, long Amount, long Balance, DateTime NextClaimUtc);
 
 public sealed record PositionView(Market Market, Side Side, double Shares, long NetCost);
@@ -106,6 +108,66 @@ public sealed class MarketService(
             _lock.Release();
         }
     }
+
+    /// <summary>Eddies the user can still earn with /getbacktowork today.</summary>
+    public async Task<long> GetSelfTimeoutAllowanceAsync(ulong guildId, ulong userId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var wallet = await db.Wallets.AsNoTracking().FirstOrDefaultAsync(w => w.GuildId == guildId && w.UserId == userId);
+        return _options.SelfTimeoutDailyLimit - SelfTimeoutEarnedToday(wallet);
+    }
+
+    /// <summary>
+    /// Pays for a self-timeout of <paramref name="minutes"/>, within today's limit. Call it before timing the user out,
+    /// and <see cref="RefundSelfTimeoutAsync"/> if the timeout fails, so nobody is timed out without being paid.
+    /// </summary>
+    public async Task<SelfTimeoutResult> PaySelfTimeoutAsync(ulong guildId, ulong userId, int minutes)
+    {
+        var amount = minutes * _options.SelfTimeoutPerMinute;
+        await _lock.WaitAsync();
+        try
+        {
+            await using var db = await dbFactory.CreateDbContextAsync();
+            var wallet = await GetOrCreateWalletAsync(db, guildId, userId);
+            var earned = SelfTimeoutEarnedToday(wallet);
+            var left = _options.SelfTimeoutDailyLimit - earned;
+            if (amount > left)
+                throw new MarketException(left <= 0
+                    ? $"You've already earned the daily maximum of {FormatMoney(_options.SelfTimeoutDailyLimit)}. Come back tomorrow (UTC)."
+                    : $"That would pay {FormatMoney(amount)}, but you can only earn {FormatMoney(left)} more today.");
+
+            wallet.SelfTimeoutEarned = earned + amount;
+            wallet.SelfTimeoutDayUtc = UtcNow.Date;
+            wallet.Balance += amount;
+            await db.SaveChangesAsync();
+            return new SelfTimeoutResult(amount, wallet.Balance);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>Takes back a <see cref="PaySelfTimeoutAsync"/> payment whose timeout didn't happen.</summary>
+    public async Task RefundSelfTimeoutAsync(ulong guildId, ulong userId, long amount)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            await using var db = await dbFactory.CreateDbContextAsync();
+            var wallet = await GetOrCreateWalletAsync(db, guildId, userId);
+            wallet.Balance -= amount;
+            wallet.SelfTimeoutEarned = Math.Max(0, SelfTimeoutEarnedToday(wallet) - amount);
+            await db.SaveChangesAsync();
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    private long SelfTimeoutEarnedToday(Wallet? wallet) =>
+        wallet?.SelfTimeoutDayUtc is { } day && day.Date == UtcNow.Date ? wallet.SelfTimeoutEarned : 0;
 
     public async Task<IReadOnlyList<Wallet>> GetLeaderboardAsync(ulong guildId, int count)
     {

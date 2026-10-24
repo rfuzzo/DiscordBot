@@ -206,6 +206,12 @@ namespace DiscordBot.Data.Migrations
                     b.Property<DateTime?>("LastDailyClaimUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("SelfTimeoutDayUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SelfTimeoutEarned")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("GuildId", "UserId");
 
                     b.HasIndex("GuildId", "Balance");

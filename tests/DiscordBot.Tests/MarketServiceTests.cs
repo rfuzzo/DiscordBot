@@ -22,6 +22,45 @@ public sealed class MarketServiceTests : IDisposable
             Criteria: new ModCriteria("Johnny", null, null)));
 
     [Fact]
+    public async Task SelfTimeoutPaysPerMinuteUpToTheDailyLimit()
+    {
+        Assert.Equal(new SelfTimeoutResult(300, 1300), await _service.PaySelfTimeoutAsync(Guild, Alice, 30));
+        Assert.Equal(new SelfTimeoutResult(100, 1400), await _service.PaySelfTimeoutAsync(Guild, Alice, 10));
+        Assert.Equal(100, await _service.GetSelfTimeoutAllowanceAsync(Guild, Alice));
+
+        var ex = await Assert.ThrowsAsync<MarketException>(() => _service.PaySelfTimeoutAsync(Guild, Alice, 30));
+        Assert.Contains("100", ex.Message);
+        Assert.Equal(1400, (await _service.GetWalletAsync(Guild, Alice)).Balance);
+
+        await _service.PaySelfTimeoutAsync(Guild, Alice, 10);
+        Assert.Equal(0, await _service.GetSelfTimeoutAllowanceAsync(Guild, Alice));
+        Assert.Equal(500, await _service.GetSelfTimeoutAllowanceAsync(Guild, Bob));
+    }
+
+    [Fact]
+    public async Task SelfTimeoutLimitResetsAtMidnightUtc()
+    {
+        await _service.PaySelfTimeoutAsync(Guild, Alice, 30);
+        await _service.PaySelfTimeoutAsync(Guild, Alice, 10);
+        await _service.PaySelfTimeoutAsync(Guild, Alice, 10);
+        Assert.Equal(0, await _service.GetSelfTimeoutAllowanceAsync(Guild, Alice));
+
+        _time.Advance(TimeSpan.FromHours(12)); // Start is 12:00 UTC
+        Assert.Equal(500, await _service.GetSelfTimeoutAllowanceAsync(Guild, Alice));
+        Assert.Equal(300, (await _service.PaySelfTimeoutAsync(Guild, Alice, 30)).Amount);
+    }
+
+    [Fact]
+    public async Task SelfTimeoutRefundUndoesThePayment()
+    {
+        var paid = await _service.PaySelfTimeoutAsync(Guild, Alice, 30);
+        await _service.RefundSelfTimeoutAsync(Guild, Alice, paid.Amount);
+
+        Assert.Equal(1000, (await _service.GetWalletAsync(Guild, Alice)).Balance);
+        Assert.Equal(500, await _service.GetSelfTimeoutAllowanceAsync(Guild, Alice));
+    }
+
+    [Fact]
     public async Task GetSettlementRebuildsThePayoutsWithoutPayingAgain()
     {
         var market = await CreateMarketAsync();
